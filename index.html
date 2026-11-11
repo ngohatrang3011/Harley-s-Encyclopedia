@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polymath</title>
+  <meta name="description" content="A personal learning diary: capture notes, questions and topics day by day, and watch them connect into a map of what you know.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='9' cy='22' r='5' fill='%233b82f6'/><circle cx='23' cy='22' r='4' fill='%23f97316'/><circle cx='16' cy='9' r='6' fill='%238b5cf6'/></svg>">
+  <script>
+    // Apply saved theme before first paint.
+    try { const s = JSON.parse(localStorage.getItem("polymath:v1") || "{}"); if (s.theme) document.documentElement.dataset.theme = s.theme; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#/" aria-label="Polymath home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <line x1="9" y1="22" x2="16" y2="9" stroke="currentColor" stroke-opacity=".3" stroke-width="1.5"/>
+        <line x1="23" y1="22" x2="16" y2="9" stroke="currentColor" stroke-opacity=".3" stroke-width="1.5"/>
+        <line x1="9" y1="22" x2="23" y2="22" stroke="currentColor" stroke-opacity=".3" stroke-width="1.5"/>
+        <circle cx="9" cy="22" r="5" fill="var(--c-computing)"/>
+        <circle cx="23" cy="22" r="4" fill="var(--c-math)"/>
+        <circle cx="16" cy="9" r="6" fill="var(--c-ai)"/>
+      </svg>
+      <span>Polymath</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="journal">Journal</a>
+      <a href="#/map" data-nav="map">Map</a>
+      <a href="#/keywords" data-nav="keywords">Keywords</a>
+      <a href="#/library" data-nav="library">Library</a>
+    </nav>
+    <button class="search-btn" id="open-search" aria-label="Search (press /)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span>Search</span><kbd>/</kbd>
+    </button>
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode"></button>
+  </header>
+  <main id="app"></main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="graph.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
