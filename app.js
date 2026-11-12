@@ -5,7 +5,6 @@
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const domain = url => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
   const trunc = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
   const plain = t => String(t || "").replace(/`|\*\*|\*/g, "").replace(/\s+/g, " ").trim();
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -35,8 +34,6 @@
   const I = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
   const ICON = {
     search: I('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
-    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></svg>',
-    heart: I('<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>'),
     trash: I('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
     sun: I('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
     moon: I('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>'),
@@ -50,7 +47,6 @@
     note: I('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z"/>'),
     question: I('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.4M12 17h.01"/>'),
     keyword: I('<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>'),
-    book: I('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'),
     shuffle: I('<path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>'),
     reply: I('<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/>'),
     merge: I('<path d="M6 3v6a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 21v-3"/>'),
@@ -61,31 +57,6 @@
     question: { label: "Question", plural: "Questions", prompt: "What are you wondering about?" },
   };
   const PALETTE = ["computing", "humanities", "science", "math", "ai", "meta", "creative"];
-
-  // ════════════ Library data (curated paths) ════════════
-  const STATUSES = [
-    { id: "to-learn", label: "To learn", color: "var(--status-to-learn)" },
-    { id: "learning", label: "Learning", color: "var(--status-learning)" },
-    { id: "learned", label: "Learned", color: "var(--status-learned)" },
-  ];
-  const statusById = Object.fromEntries(STATUSES.map(s => [s.id, s]));
-  const TYPE_LABEL = { course: "Course", book: "Book", video: "Video", article: "Article", docs: "Docs", interactive: "Interactive", tool: "Tool" };
-  const CATS = window.CATEGORIES;
-  const TOPICS = window.TOPICS;
-  const byId = new Map(TOPICS.map(t => [t.id, t]));
-  for (const t of TOPICS) for (const s of t.sections) s.links = s.links.map(([title, url, type, flag]) => ({ title, url, type, paid: flag === "paid" }));
-  for (const t of TOPICS) for (const r of t.related) {
-    const o = byId.get(r);
-    if (!o) { console.warn(`Unknown related topic "${r}" on ${t.id}`); continue; }
-    if (!o.related.includes(t.id)) o.related.push(t.id);
-  }
-  const LIB_EDGES = [];
-  { const seen = new Set();
-    for (const t of TOPICS) for (const r of t.related) {
-      const k = [t.id, r].sort().join("|");
-      if (byId.has(r) && !seen.has(k)) { seen.add(k); LIB_EDGES.push({ source: t.id, target: r }); }
-    } }
-  const TOTAL_LINKS = new Set(TOPICS.flatMap(t => t.sections.flatMap(s => s.links.map(l => l.url)))).size;
 
   // ════════════ Persistent state ════════════
   const KEY = "polymath:v1";
@@ -618,8 +589,6 @@
     else if (view === "keywords") { nav = "keywords"; renderKeywords(); }
     else if (view === "k" && store.keywords[arg]) { nav = "keywords"; renderKeyword(store.keywords[arg]); }
     else if (view === "tag" && arg) { const k = findKeyword(arg); if (k) { location.replace(`#/k/${k.id}`); return; } renderJournal({}); }
-    else if (view === "library") { nav = "library"; if (arg && byId.has(arg)) renderTopic(byId.get(arg)); else renderLibrary(); }
-    else if (view === "t" && byId.has(arg)) { location.replace(`#/library/${arg}`); return; }
     else { if (view === "k") toast("That keyword no longer exists"); renderJournal({}); }
     document.querySelectorAll("[data-nav]").forEach(a => { if (a.dataset.nav === nav) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     window.scrollTo(0, 0);
@@ -814,7 +783,7 @@
     const D = 864e5, now = Date.now();
     const at = (daysAgo, h, m) => { const t = new Date(now - daysAgo * D); t.setHours(h, m, 0, 0); return Math.min(t.getTime(), now - 60000 * (10 - daysAgo)); };
     ensureKeyword("Spaced repetition", { desc: "Reviewing material at increasing intervals, right before you would forget it." });
-    ensureKeyword("Rust", { desc: "A systems language I'm learning.", lib: "rust" });
+    ensureKeyword("Rust", { desc: "A systems language I'm learning." });
     const add = (daysAgo, h, m, kind, text, kwNames, extra = {}) => saveNew({ kind, text, kwNames }, { created: at(daysAgo, h, m), ...extra });
     add(4, 9, 12, "note", "Reviewing something right before you would forget it makes the memory last much longer than cramming.", ["Spaced repetition", "Memory", "Learning"]);
     add(4, 21, 40, "note", "**The forgetting curve**: memory fades roughly exponentially after learning. Each successful review flattens the curve, so the next review can wait longer.", ["Memory", "Spaced repetition"]);
@@ -895,7 +864,6 @@
     const its = idx.kwItems.get(k.id);
     const nb = idx.neighbors(k.id);
     const open = its.filter(i => i.kind === "question" && !i.answered).length;
-    const lib = k.lib && byId.get(k.lib);
     const color = idx.color(k.id);
     const rerender = ed => { const y = scrollY; teardown(); renderKeyword(store.keywords[k.id], ed); scrollTo(0, y); };
     let kindFilter = "all";
@@ -916,7 +884,6 @@
             <button class="btn" data-kact="edit">${ICON.edit} ${k.desc ? "Edit" : "Rename / describe"}</button>
             <span class="merge-wrap ac-wrap"><button class="btn" data-kact="merge">${ICON.merge} Merge into…</button></span>
             <button class="btn danger" data-kact="delete">${ICON.trash} Delete</button>
-            ${lib ? `<a class="btn" href="#/library/${lib.id}">${ICON.book} ${esc(lib.title)} learning path</a>` : ""}
           </div>`}
         </header>
         <div class="entry-layout">
@@ -1118,217 +1085,6 @@
     });
   }
 
-  // ════════════ Library ════════════
-  const customLinks = id => store.custom[id] || [];
-  const allLinks = t => t.sections.flatMap(s => s.links).concat(customLinks(t.id));
-  const progress = t => {
-    const ls = allLinks(t), done = ls.filter(l => store.done[l.url]).length;
-    return { done, total: ls.length, pct: ls.length ? Math.round((done / ls.length) * 100) : 0 };
-  };
-  const setStatus = (id, s) => { if (s) store.status[id] = s; else delete store.status[id]; save(); };
-  const diaryKeywordFor = t => keywords().find(k => k.lib === t.id) || findKeyword(t.title);
-
-  function searchLibrary(q) {
-    q = q.trim().toLowerCase();
-    if (!q) return [];
-    return TOPICS.map(t => {
-      const title = t.title.toLowerCase();
-      let s = 0;
-      if (title === q) s = 10; else if (title.startsWith(q)) s = 6;
-      else if (title.split(/[\s&-]+/).some(w => w.startsWith(q))) s = 4; else if (title.includes(q)) s = 3;
-      else if (CATS[t.cat].label.toLowerCase().startsWith(q)) s = 2;
-      return { t, s };
-    }).filter(x => x.s).sort((a, b) => b.s - a.s).map(x => x.t);
-  }
-
-  function linkRow(l, custom) {
-    const done = !!store.done[l.url], liked = !!store.liked[l.url];
-    return `<li class="link${done ? " is-done" : ""}">
-      <button class="check" data-act="done" data-url="${esc(l.url)}" aria-pressed="${done}" aria-label="Mark “${esc(l.title)}” as done">${ICON.check}</button>
-      <div class="link-main">
-        <a class="link-title" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)}</a>
-        <div class="meta">
-          <span class="badge">${esc(TYPE_LABEL[l.type] || l.type)}</span>
-          ${l.paid ? '<span class="badge paid">Paid</span>' : ""}
-          ${custom ? '<span class="badge mine">Added by you</span>' : ""}
-          <span>${esc(domain(l.url))}</span>
-        </div>
-      </div>
-      <button class="ghost-btn like" data-act="like" data-url="${esc(l.url)}" aria-pressed="${liked}" aria-label="Save “${esc(l.title)}”" title="Save">${ICON.heart}</button>
-      ${custom ? `<button class="ghost-btn" data-act="remove" data-url="${esc(l.url)}" aria-label="Remove “${esc(l.title)}”" title="Remove">${ICON.trash}</button>` : ""}
-    </li>`;
-  }
-
-  function renderTopic(t) {
-    document.title = `${t.title} · Library · Polymath`;
-    const neighbors = t.related.map(id => byId.get(id)).filter(Boolean);
-    app.innerHTML = `
-      <article class="page topic">
-        <a class="back" href="#/library">${ICON.left} Library</a>
-        <a class="pill" href="#/library" style="--c:var(--c-${t.cat})">${esc(CATS[t.cat].label)}</a>
-        <h1 class="title">${esc(t.title)}</h1>
-        <p class="lede">${esc(t.summary)}</p>
-        <div class="topic-controls">
-          <div class="segmented" role="radiogroup" aria-label="Your status for ${esc(t.title)}">
-            ${STATUSES.map(s => `<button role="radio" data-status="${s.id}" style="--sc:${s.color}"><span class="s-dot"></span>${s.label}</button>`).join("")}
-          </div>
-          <div class="progress"><div class="bar" role="progressbar" aria-label="Resources completed" aria-valuemin="0" aria-valuemax="100"><span></span></div><span class="p-text"></span></div>
-          <span class="diary-btn"></span>
-        </div>
-        <div class="topic-body">
-          <div>
-            <ol class="steps" id="steps"></ol>
-            <form class="add-link" id="add-link" autocomplete="off">
-              <h3>Add a resource</h3>
-              <p>Know something great for ${esc(t.title)}? Add it to your own path. It's saved in this browser only.</p>
-              <div class="form-row">
-                <input class="input" name="title" placeholder="Title" required maxlength="140" aria-label="Title">
-                <input class="input" name="url" type="url" placeholder="https://…" required aria-label="URL">
-                <select class="input" name="type" aria-label="Type">${Object.entries(TYPE_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
-                <button class="btn primary" type="submit">${ICON.plus} Add</button>
-              </div>
-            </form>
-          </div>
-          <aside class="sidebar">
-            <div class="card"><h3>Neighborhood</h3><div class="mini-graph"><canvas aria-label="Graph of topics related to ${esc(t.title)}"></canvas></div></div>
-            <div class="card"><h3>Related topics</h3><div class="related">
-              ${neighbors.map(n => `<a class="chip" href="#/library/${n.id}" style="--c:var(--c-${n.cat})"><span class="dot"></span>${esc(n.title)}</a>`).join("")}
-            </div></div>
-          </aside>
-        </div>
-      </article>`;
-
-    const page = $(".topic");
-    function renderDiaryBtn() {
-      const k = diaryKeywordFor(t);
-      $(".diary-btn", page).innerHTML = k ? `<a class="btn" href="#/k/${k.id}">${ICON.keyword} Open keyword in my diary</a>`
-        : `<button class="btn primary" data-act="to-diary">${ICON.plus} Add as keyword to my diary</button>`;
-    }
-    function renderSteps() {
-      const mine = customLinks(t.id);
-      const sections = t.sections.map(s => ({ ...s, custom: false })).concat(mine.length ? [{ title: "Your additions", links: mine, custom: true }] : []);
-      $("#steps").innerHTML = sections.map(s => `<li class="step${s.links.length && s.links.every(l => store.done[l.url]) ? " is-complete" : ""}">
-        <h2>${esc(s.title)}</h2>${s.note ? `<p class="note">${esc(s.note)}</p>` : ""}
-        <ul class="links">${s.links.map(l => linkRow(l, s.custom)).join("")}</ul></li>`).join("");
-    }
-    function renderHead() {
-      const st = store.status[t.id];
-      page.querySelectorAll("[data-status]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.status === st)));
-      const p = progress(t);
-      $(".bar > span", page).style.width = p.pct + "%";
-      $(".bar", page).setAttribute("aria-valuenow", p.pct);
-      $(".p-text", page).textContent = `${p.done} of ${p.total} done`;
-    }
-    renderSteps(); renderHead(); renderDiaryBtn();
-
-    page.addEventListener("click", e => {
-      const sb = e.target.closest("[data-status]");
-      if (sb) {
-        const next = store.status[t.id] === sb.dataset.status ? null : sb.dataset.status;
-        setStatus(t.id, next); renderHead(); mini.dirty = true;
-        toast(next ? `${t.title}: ${statusById[next].label}` : `Cleared status for ${t.title}`);
-        return;
-      }
-      const btn = e.target.closest("[data-act]");
-      if (!btn) return;
-      if (btn.dataset.act === "to-diary") {
-        const k = ensureKeyword(t.title, { desc: t.summary, lib: t.id });
-        k.lib = t.id;
-        const linked = keywords().filter(x => x.lib && t.related.includes(x.lib));
-        linked.forEach(x => relate(k.id, x.id));
-        save(); renderDiaryBtn();
-        toast(linked.length ? `Added, related to ${linked.map(x => x.name).join(", ")}` : "Added to your diary");
-        return;
-      }
-      const url = btn.dataset.url, link = allLinks(t).find(l => l.url === url);
-      if (btn.dataset.act === "done") {
-        if (store.done[url]) delete store.done[url]; else store.done[url] = Date.now();
-        const p = progress(t);
-        if (store.done[url] && !store.status[t.id]) { setStatus(t.id, "learning"); toast(`Started learning ${t.title}`); }
-        if (store.done[url] && p.done === p.total && store.status[t.id] !== "learned") { setStatus(t.id, "learned"); toast(`You finished the ${t.title} path 🎉`); }
-        save();
-      } else if (btn.dataset.act === "like") {
-        if (store.liked[url]) delete store.liked[url];
-        else store.liked[url] = { title: link.title, url, type: link.type, topic: t.id, at: Date.now() };
-        save();
-      } else if (btn.dataset.act === "remove") {
-        store.custom[t.id] = customLinks(t.id).filter(l => l.url !== url);
-        if (!store.custom[t.id].length) delete store.custom[t.id];
-        delete store.done[url]; delete store.liked[url];
-        save(); toast("Resource removed");
-      }
-      renderSteps(); renderHead(); mini.dirty = true;
-    });
-
-    $("#add-link").addEventListener("submit", e => {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      const title = String(f.get("title")).trim(), raw = String(f.get("url")).trim(), type = String(f.get("type"));
-      let url;
-      try { const u = new URL(raw); if (!/^https?:$/.test(u.protocol)) throw 0; url = u.href; }
-      catch { toast("Please enter a valid http(s) link"); return; }
-      if (allLinks(t).some(l => l.url === url)) { toast("That link is already on this path"); return; }
-      store.custom[t.id] = customLinks(t.id).concat({ title, url, type, paid: false });
-      save(); e.target.reset(); renderSteps(); renderHead();
-      toast("Added to your path");
-    });
-
-    const ids = new Set([t.id, ...t.related]);
-    const mini = new ForceGraph($(".mini-graph canvas", page), {
-      nodes: [...ids].map(id => ({ id, label: byId.get(id).title, cat: byId.get(id).cat })),
-      links: LIB_EDGES.filter(e => ids.has(e.source) && ids.has(e.target)),
-      focusId: t.id, linkDistance: 110, charge: 900, gravity: 0.05, collidePad: 40, maxFitZoom: 1,
-      padding: () => ({ top: 10, right: 10, bottom: 10, left: 10 }),
-      getStatus: id => store.status[id],
-      onClick: n => { if (n.id !== t.id) location.hash = `#/library/${n.id}`; },
-    });
-    graphs.add(mini);
-  }
-
-  function topicCard(t) {
-    const st = store.status[t.id], p = progress(t);
-    return `<a class="topic-card" href="#/library/${t.id}" style="--c:var(--c-${t.cat})">
-      <div class="tc-head"><span class="dot"></span>${esc(t.title)}</div>
-      <p>${esc(t.summary)}</p>
-      ${p.done ? `<div class="bar" aria-hidden="true"><span style="width:${p.pct}%"></span></div>` : ""}
-      <div class="tc-foot"><span>${p.done ? `${p.done}/${p.total} done` : `${p.total} resources`}</span>
-        ${st ? `<span class="status-tag" style="--sc:${statusById[st].color}">${statusById[st].label}</span>` : ""}</div>
-    </a>`;
-  }
-
-  function renderLibrary() {
-    document.title = "Library · Polymath";
-    const liked = Object.values(store.liked).sort((a, b) => b.at - a.at);
-    const n = s => TOPICS.filter(t => store.status[t.id] === s).length;
-    app.innerHTML = `
-      <div class="page">
-        <h1 class="title">Library</h1>
-        <p class="lede">${TOPICS.length} curated learning paths with ${TOTAL_LINKS} resources. Track your progress, or add a topic to your diary as a keyword.</p>
-        ${n("learning") + n("to-learn") + n("learned") ? `<div class="stats">
-          <div class="stat"><div class="n">${n("learning")}</div><div class="l">Learning now</div></div>
-          <div class="stat"><div class="n">${n("to-learn")}</div><div class="l">On your list</div></div>
-          <div class="stat"><div class="n">${n("learned")}</div><div class="l">Learned</div></div>
-          <div class="stat"><div class="n">${Object.keys(store.done).length}</div><div class="l">Resources completed</div></div>
-        </div>` : ""}
-        ${liked.length ? `<h2 class="section-title" style="margin-top:8px">Saved resources</h2><ul class="links saved">${liked.map(l => {
-            const t = byId.get(l.topic);
-            return linkRow(l, false).replace('<div class="meta">', `<div class="meta">${t ? `<a class="badge" href="#/library/${t.id}" style="text-decoration:none">${esc(t.title)}</a>` : ""}`);
-          }).join("")}</ul>` : ""}
-        ${Object.entries(CATS).map(([id, c]) => {
-          const ts = TOPICS.filter(t => t.cat === id).sort((a, b) => a.title.localeCompare(b.title));
-          return ts.length ? `<section class="cat-block"><h2><span class="dot" style="--c:var(--c-${id});margin:0"></span>${esc(c.label)}</h2><div class="grid">${ts.map(topicCard).join("")}</div></section>` : "";
-        }).join("")}
-      </div>`;
-    $(".saved", app)?.addEventListener("click", e => {
-      const btn = e.target.closest("[data-act]");
-      if (!btn) return;
-      const url = btn.dataset.url;
-      if (btn.dataset.act === "done") { if (store.done[url]) delete store.done[url]; else store.done[url] = Date.now(); }
-      if (btn.dataset.act === "like") { delete store.liked[url]; toast("Removed from saved"); }
-      save(); renderLibrary();
-    });
-  }
-
   // ════════════ Command palette ════════════
   function openPalette() {
     if ($(".palette-backdrop")) return;
@@ -1337,7 +1093,7 @@
     bd.className = "palette-backdrop";
     bd.innerHTML = `<div class="palette" role="dialog" aria-modal="true" aria-label="Search">
       <div class="search">${ICON.search.replace("<svg", '<svg class="search-icon"')}
-        <input placeholder="Search keywords, entries and the library, or jot something down…" aria-label="Search" role="combobox" aria-expanded="true" aria-controls="pal-results" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div>
+        <input placeholder="Search keywords and entries, or jot something down…" aria-label="Search" role="combobox" aria-expanded="true" aria-controls="pal-results" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div>
       <ul class="results" id="pal-results" role="listbox"></ul></div>`;
     document.body.appendChild(bd);
     const input = $("input", bd), ul = $("ul", bd);
@@ -1348,13 +1104,12 @@
       const q = input.value.trim(), idx = buildIndex();
       const ks = searchKeywords(q).slice(0, q ? 6 : 6).map(k => ({ group: q ? "Keywords" : "Recent keywords", html: kwOption(k, idx), go: `#/k/${k.id}` }));
       const es = searchItems(q).slice(0, 5).map(it => ({ group: "Entries", html: `<span class="dot" style="--c:var(--c-${it.kind})"></span><div><div class="r-title">${esc(trunc(plain(it.text), 90))}</div><div class="r-sum">${KIND[it.kind].label} · ${it.kws.map(id => store.keywords[id]?.name).filter(Boolean).map(esc).join(", ") || "no keyword"} · ${shortDate(it.created)}</div></div>`, go: itemHref(it) }));
-      const lib = searchLibrary(q).slice(0, 3).map(t => ({ group: "Library", html: `<span class="dot" style="--c:var(--c-${t.cat})"></span><div><div class="r-title">${esc(t.title)}</div><div class="r-sum">${esc(CATS[t.cat].label)} · learning path</div></div>`, go: `#/library/${t.id}` }));
       const acts = q ? [
         { group: "Create", html: `<span class="opt-new">${ICON.note} Save note: “${esc(trunc(q, 60))}”</span>`, act: () => quickSave("note", q) },
         { group: "Create", html: `<span class="opt-new">${ICON.question} Save question: “${esc(trunc(q, 60))}”</span>`, act: () => quickSave("question", q) },
         ...(!findKeyword(q) && q.length <= 60 ? [{ group: "Create", html: `<span class="opt-new">${ICON.keyword} New keyword “${esc(q)}”</span>`, act: () => { const k = ensureKeyword(q); save(); location.hash = `#/k/${k.id}`; } }] : []),
       ] : [];
-      list = [...ks, ...es, ...lib, ...acts];
+      list = [...ks, ...es, ...acts];
       sel = 0;
       let last = null;
       ul.innerHTML = list.length ? list.map((it, i) => {

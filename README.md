@@ -28,12 +28,11 @@ npx serve .        # or: python -m http.server
 - **Map**: keywords only. Bigger nodes have more entries, thicker lines mean more shared entries, a dashed amber ring marks open questions, and colors show connected clusters. You can highlight open questions, recent activity or unconnected keywords.
 - **Keyword page**: everything filed under the keyword (all, questions or notes), a box to add straight into it, connected keywords with shared counts, *relate to…*, *might be related* suggestions, and a neighborhood graph. You can also rename or describe it, merge it into another keyword (for example *ML* into *Machine learning*), or delete it. Deleting a keyword keeps its entries.
 - **Keywords**: all keywords, which you can sort, filter and create.
-- **Library**: 37 curated learning paths. Track progress on them, and use *Add as keyword* to bring one into your diary.
 
 ## Keyboard
 | Key | Action |
 | --- | --- |
-| `/` or `Ctrl/⌘ + K` | Search keywords, entries and the library, or save a quick note or question from the search box (with `#keywords`) |
+| `/` or `Ctrl/⌘ + K` | Search keywords and entries, or save a quick note or question from the search box (with `#keywords`) |
 | `n` | Jump to the writing box |
 | `Ctrl/⌘ + Enter` | Save |
 
@@ -43,7 +42,7 @@ Text supports paragraphs, `- lists`, `> quotes`, `**bold**`, `*italic*`, `` `cod
 Without an account, everything is stored in your browser's `localStorage`, on this device and in this browser only. Use **Export** in the journal sidebar for a JSON backup, and **Import** to restore or merge one. When an entry exists on both sides, the newer version wins. Data from the earlier entries-and-links version is converted automatically: topics and tags become keywords, notes and questions become entries. The original is kept under the `polymath:v1:backup-before-keywords` key.
 
 ### Accounts and sync (Supabase)
-Sign in with the cloud button in the header to back up the diary and use it on every device. Sign-in is by email: a link, or a code typed into the app. What syncs: keywords, entries, and library progress (status, done, saved, custom resources). The theme and unsent drafts stay on each device.
+Sign in with the cloud button in the header to back up the diary and use it on every device. Sign-in is by email: a link, or a code typed into the app. What syncs: keywords and entries. The theme and unsent drafts stay on each device.
 
 - **First sign-in** adds whatever is already in the browser to the account. If both copies have the same record, the newer one wins.
 - **Edits** are queued and pushed a moment after each save. Other devices pick them up when they open, regain focus, come back online, or once a minute.
@@ -71,5 +70,4 @@ If `config.js` has no Supabase values, the app runs in local-only mode with no s
 | `supabase/schema.sql` | Database table, security policies and the newest-wins trigger |
 | `netlify.toml` | Netlify publish settings and security headers |
 | `graph.js` | Dependency-free canvas force graph (weighted links, rendering, input) |
-| `data.js` | Curated library topics and resources |
 | `styles.css` | Theme tokens and layout (light and dark) |

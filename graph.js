@@ -165,6 +165,7 @@ class ForceGraph {
       bg: v("--bg"), text: v("--text"), muted: v("--muted"),
       edge: v("--graph-edge"), edgeStrong: v("--graph-edge-strong"),
       learned: v("--status-learned"), learning: v("--status-learning"), toLearn: v("--status-to-learn"), open: v("--c-question"),
+      glow: parseFloat(v("--glow-r")) || 0,
     };
     this.catColors = {};
     for (const n of this.nodes) this.catColors[n.cat] ??= v(`--c-${n.cat}`) || "#888";
@@ -211,7 +212,11 @@ class ForceGraph {
       }
       ctx.beginPath(); ctx.arc(n.x, n.y, n === hov ? n.r + 1.5 : n.r, 0, Math.PI * 2);
       if (n.hollow) { ctx.fillStyle = C.bg; ctx.fill(); ctx.lineWidth = 1.6; ctx.strokeStyle = col; ctx.stroke(); }
-      else { ctx.fillStyle = col; ctx.fill(); }
+      else {
+        ctx.fillStyle = col;
+        if (C.glow && on) { ctx.shadowColor = col; ctx.shadowBlur = C.glow * 2; }
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
       if (n.id === this.o.focusId) { ctx.lineWidth = 2; ctx.strokeStyle = C.bg; ctx.stroke(); }
     }
     ctx.restore();
