@@ -4,7 +4,7 @@ A personal learning diary built on **keywords**. Write down what you learn and w
 
 ## Run it
 
-No build step and no dependencies. Open `index.html` in a browser, or serve the folder:
+No build step. The only dependency is supabase-js, loaded from a CDN for sign-in and sync. Open `index.html` in a browser, or serve the folder:
 
 ```sh
 npx serve .        # or: python -m http.server
@@ -40,12 +40,36 @@ npx serve .        # or: python -m http.server
 Text supports paragraphs, `- lists`, `> quotes`, `**bold**`, `*italic*`, `` `code` ``, links and `#keywords`.
 
 ## Your data
-Everything is stored in your browser's `localStorage`, on this device and in this browser only. Use **Export** in the journal sidebar for a JSON backup, and **Import** to restore or merge one. When an entry exists on both sides, the newer version wins. Data from the earlier entries-and-links version is converted automatically: topics and tags become keywords, notes and questions become entries. The original is kept under the `polymath:v1:backup-before-keywords` key.
+Without an account, everything is stored in your browser's `localStorage`, on this device and in this browser only. Use **Export** in the journal sidebar for a JSON backup, and **Import** to restore or merge one. When an entry exists on both sides, the newer version wins. Data from the earlier entries-and-links version is converted automatically: topics and tags become keywords, notes and questions become entries. The original is kept under the `polymath:v1:backup-before-keywords` key.
+
+### Accounts and sync (Supabase)
+Sign in with the cloud button in the header to back up the diary and use it on every device. Sign-in is by email: a link, or a code typed into the app. What syncs: keywords, entries, and library progress (status, done, saved, custom resources). The theme and unsent drafts stay on each device.
+
+- **First sign-in** adds whatever is already in the browser to the account. If both copies have the same record, the newer one wins.
+- **Edits** are queued and pushed a moment after each save. Other devices pick them up when they open, regain focus, come back online, or once a minute.
+- **Offline** edits wait in the queue and sync when the connection returns. The sidebar shows how many are waiting.
+- **Conflicts**: the most recent edit to a record wins. Keywords with the same name created on two devices are merged automatically.
+- **Signing out** clears this browser's copy. The diary stays in the account.
+
+How it works: each record is one row in the `records` table ([supabase/schema.sql](supabase/schema.sql)), protected by row-level security so people can only reach their own rows. Deletions are stored as tombstones so other devices see them. [sync.js](sync.js) holds the sync engine and the sign-in dialog.
+
+If `config.js` has no Supabase values, the app runs in local-only mode with no sign-in button.
+
+#### Setting up Supabase
+1. **Create the table.** In the Supabase dashboard, open *SQL Editor → New query*, paste [supabase/schema.sql](supabase/schema.sql), and click *Run*.
+2. **Connect the app.** Under *Project Settings → API*, copy the project URL and the publishable (or `anon`) key into [config.js](config.js). Never use the `service_role` or secret key here.
+3. **Allow your site's URLs.** Under *Authentication → URL Configuration*, set *Site URL* to your live site (for example `https://your-site.netlify.app`). Under *Redirect URLs*, add that URL plus any local addresses you test on, such as `http://localhost:3000`.
+4. **Let users sign in with a code too (recommended).** Under *Authentication → Emails → Magic Link*, add `{{ .Token }}` to the template, for example `Or enter this code: {{ .Token }}`. The code works when someone opens the email on a different device from the one they're signing in on.
+5. **Set up email for real users.** Supabase's built-in email only sends to your own team's addresses and has a low hourly limit. Before launch, connect an email provider (such as Resend, Postmark, SendGrid or Amazon SES) under *Authentication → Emails → SMTP Settings*.
 
 ## Files
 | File | Purpose |
 | --- | --- |
 | `app.js` | Keywords, entries, suggestions, routing and all views |
+| `sync.js` | Supabase sign-in and cloud sync |
+| `config.js` | Supabase project URL and publishable key (empty = local-only) |
+| `supabase/schema.sql` | Database table, security policies and the newest-wins trigger |
+| `netlify.toml` | Netlify publish settings and security headers |
 | `graph.js` | Dependency-free canvas force graph (weighted links, rendering, input) |
 | `data.js` | Curated library topics and resources |
 | `styles.css` | Theme tokens and layout (light and dark) |

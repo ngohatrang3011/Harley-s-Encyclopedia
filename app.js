@@ -96,8 +96,9 @@
   }
   const store = load();
   let saveWarned = false;
+  let sync = null; // cloud sync (sync.js), started at boot
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(store)); saveWarned = false; return true; }
+    try { localStorage.setItem(KEY, JSON.stringify(store)); saveWarned = false; sync?.noteChange(); return true; }
     catch {
       if (!saveWarned) toast("Couldn't save: browser storage is full or blocked. Export a backup.");
       saveWarned = true; return false;
@@ -167,6 +168,32 @@
     if (!to.lib && from.lib) to.lib = from.lib;
     delete store.keywords[fromId];
     touch([toId]);
+  }
+  // After changes arrive from another device: fold together keywords created
+  // with the same name on two devices (the oldest wins, so every device picks
+  // the same one), and drop references to things deleted elsewhere.
+  function reconcile() {
+    const groups = new Map();
+    for (const k of keywords()) {
+      if (!Array.isArray(k.related)) k.related = [];
+      const key = keyOf(k.name);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(k);
+    }
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      g.sort((a, b) => (a.created || 0) - (b.created || 0) || (a.id < b.id ? -1 : 1));
+      for (const k of g.slice(1)) mergeKeyword(k.id, g[0].id);
+    }
+    for (const it of items()) {
+      const kws = (Array.isArray(it.kws) ? it.kws : []).filter(id => store.keywords[id]);
+      if (kws.length !== it.kws?.length) it.kws = kws;
+      if (it.answers && !store.items[it.answers]) delete it.answers;
+    }
+    for (const k of keywords()) {
+      const rel = k.related.filter(id => id !== k.id && store.keywords[id]);
+      if (rel.length !== k.related.length) k.related = rel;
+    }
   }
   function relate(a, b) { const k = store.keywords[a]; if (k && a !== b) k.related = [...new Set([...(k.related || []), b])]; }
   function unrelate(a, b) {
@@ -607,6 +634,7 @@
     if (e.key !== KEY) return;
     const theme = store.theme;
     Object.assign(store, load());
+    sync?.adopt();
     if (store.theme !== theme) applyTheme();
     if (!document.activeElement?.matches("input, textarea")) refresh();
   });
@@ -737,8 +765,9 @@
         <div class="toolbar">
           <button class="btn" data-export>Export</button>
           <label class="btn" tabindex="0" data-import-label>Import<input type="file" accept="application/json,.json" hidden data-import></label>
+          ${sync?.enabled ? `<button class="btn" data-account>${esc(sync.accountLabel())}</button>` : ""}
         </div>
-        <p class="side-note">Everything is stored in this browser only. Export a backup now and then.</p>
+        <p class="side-note" data-sync-note>${esc(sync ? sync.note() : "Everything is stored in this browser only. Export a backup now and then.")}</p>
       </div>`;
   }
 
@@ -1363,6 +1392,13 @@
     }
   });
 
+  sync = window.PolymathSync?.start({
+    store, save, toast,
+    onRemote: () => {
+      reconcile(); save();
+      if (!document.activeElement?.matches("input, textarea")) refresh();
+    },
+  }) || null;
   applyTheme();
   route();
 })();
